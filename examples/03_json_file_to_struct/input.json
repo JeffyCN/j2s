@@ -1,0 +1,38 @@
+{
+        "name": "school_a",
+        "classes":      [{
+                        "name": "class_a",
+                        "groups":       [{
+                                        "name": "group_a",
+                                        "students":     [{
+                                                        "name": "s_a"
+                                                }, {
+                                                        "name": "s_b"
+                                                }]
+                                }, {
+                                        "name": "group_b",
+                                        "students":     [{
+                                                        "name": "s_c"
+                                                }, {
+                                                        "name": "s_d"
+                                                }]
+                                }]
+                }, {
+                        "name": "class_b",
+                        "groups":       [{
+                                        "name": "group_c",
+                                        "students":     [{
+                                                        "name": "s_e"
+                                                }, {
+                                                        "name": "s_f"
+                                                }]
+                                }, {
+                                        "name": "group_d",
+                                        "students":     [{
+                                                        "name": "s_g"
+                                                }, {
+                                                        "name": "s_h"
+                                                }]
+                                }]
+                }]
+}

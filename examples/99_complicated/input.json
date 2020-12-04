@@ -1,0 +1,20 @@
+{
+	"array": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        "name": "root",
+        "param_c":      {
+                "name": "param_c",
+                "double_c":     1.1,
+                "param_a":      {
+                        "name": "param_a",
+                        "int_a":        2
+                },
+                "param_b":      {
+                        "name": "param_b",
+                        "int_b":        [1, 2],
+                        "param_a":      {
+                                "name": "param_a",
+                                "int_a":        4
+                        }
+                }
+        }
+}

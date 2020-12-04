@@ -1,0 +1,54 @@
+#include <stddef.h>
+#include <stdbool.h>
+
+BEGIN_HEADER(__INPUT_H__)
+
+#ifdef ENABLE_DESC_STRUCT
+typedef struct {
+        const char *type;
+        const char *alias;
+} basic_desc_t;
+#define BASIC_DESC(t, a) \
+        { .type = t, .alias = a }
+
+typedef struct {
+        const char *type;
+        const char *alias;
+        double range[2];
+} number_desc_t;
+#define NUMBER_DESC(t, a, max, min) \
+        { .type = t, .alias = a, .range = { max, min } }
+
+typedef struct {
+        const char *type;
+        const char *alias;
+        int max_size;
+        bool allow_empty;
+} string_desc_t;
+#define STRING_DESC(t, a, max, empty) \
+        { .type = t, .alias = a, .max_size = max, .allow_empty = empty }
+#endif
+
+BEGIN_STRUCT(student_t)
+    MEMBER(const char *MEMBER_NAME, string_desc_t, name, STRING_DESC("string", "Student Name", 64, false))
+END_STRUCT(student_t)
+
+BEGIN_STRUCT(group_t)
+    MEMBER(const char *MEMBER_NAME, string_desc_t, name, STRING_DESC("string", "Group Name", 64, false))
+    MEMBER(student_t *MEMBER_NAME, basic_desc_t, students, BASIC_DESC("student_t*", NULL))
+    MEMBER(int MEMBER_NAME, number_desc_t, students_len, NUMBER_DESC("int", NULL, 1, 10))
+END_STRUCT(group_t)
+
+BEGIN_STRUCT(class_t)
+    MEMBER(const char *MEMBER_NAME, string_desc_t, name, STRING_DESC("string", "Class Name", 64, true))
+    MEMBER(group_t *MEMBER_NAME, basic_desc_t, groups, BASIC_DESC("group_t*", NULL))
+    MEMBER(int MEMBER_NAME, number_desc_t, groups_len, NUMBER_DESC("int", NULL, 1, 4))
+END_STRUCT(class_t)
+
+BEGIN_STRUCT(school_t)
+    MEMBER(const char *MEMBER_NAME, string_desc_t, name, STRING_DESC("string", "School Name", 64, false))
+    MEMBER(class_t *MEMBER_NAME, basic_desc_t, classes, BASIC_DESC("class_t*", NULL))
+    MEMBER(int MEMBER_NAME, number_desc_t, classes_len, NUMBER_DESC("int", NULL, 1, 4))
+END_STRUCT(school_t)
+
+END_HEADER(__INPUT_H__)

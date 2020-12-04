@@ -1,0 +1,8 @@
+dump
+parser
+run
+
+/input.h
+/output.h
+/j2s_generated*
+.*

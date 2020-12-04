@@ -1,0 +1,10 @@
+{
+        "a_p":  "a_p",
+        "a_pp": ["a_pp_0", "a_pp_1"],
+        "a_pp_len":     2,
+        "a_a":  "a_a",
+        "a_aa": ["a_aa_0", "a_aa_1"],
+        "a_pa": ["a_pa_0", "a_pa_1"],
+        "a_ap": ["a_ap_0", "a_ap_1"],
+        "a_ap_len":     2
+}
