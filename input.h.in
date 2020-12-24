@@ -1,0 +1,44 @@
+// #define M4_NUMBER_DESC(ALIAS, TYPE, SIZE, RANGE, DEFAULT, PRECISION)
+// #define M4_STRING_DESC(ALIAS, SIZE, RANGE, DEFAULT)
+// #define M4_BOOL_DESC(ALIAS, DEFAULT)
+// #define M4_ENUM_DESC(ALIAS, ENUM, DEFAULT)
+// #define M4_STRUCT_DESC(ALIAS, SIZE, UI_MODULE)
+
+typedef enum {
+	BOY,
+	GIRL,
+} SEX;
+
+typedef struct {
+	// M4_STRING_DESC("Student Name", M4_SIZE(1), M4_RANGE(0, 64), "name");
+	const char *student_name;
+	// M4_ENUM_DESC("Student Sex", SEX, BOY);
+	SEX sex;
+	// M4_NUMBER_DESC("Student Age", "u32", M4_SIZE(1), M4_RANGE(16, 30), 20);
+	int age;
+	// M4_BOOL_DESC("Student Sick", false);
+	bool sick;
+	// M4_NUMBER_DESC("Student temperature", "f32", M4_SIZE(1), M4_RANGE(20.0, 50), 35.2, 1);
+	double temperature;
+} student_t;
+
+typedef struct {
+	// M4_STRING_DESC("Group Name", M4_SIZE(1), M4_RANGE(0, 64), "group");
+	const char *group_name;
+	// M4_STRUCT_DESC("Students", M4_SIZE(2));
+	student_t students[2];
+} group_t;
+
+typedef struct {
+	// M4_STRING_DESC("Class Name", M4_SIZE(1), M4_RANGE(0, 64), "class");
+	const char *class_name;
+	// M4_STRUCT_DESC("Groups", M4_SIZE(2), "group_t");
+	group_t groups[2];
+} class_t;
+
+typedef struct {
+	// M4_STRING_DESC("School Name", M4_SIZE(1), M4_RANGE(0, 64), "school")
+	const char *school_name;
+	// M4_STRUCT_DESC("Classes", M4_SIZE(2), "class_t")
+	class_t classes[2];
+} school_t;

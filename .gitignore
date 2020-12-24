@@ -1,0 +1,10 @@
+dump
+parser
+demo
+*.o
+*.a
+
+/input.h
+/output.h
+/*generated*
+.*
