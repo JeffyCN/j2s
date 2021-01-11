@@ -17,6 +17,78 @@
 
 #include <sys/stat.h>
 
+typedef struct {
+	void *ptr;
+	bool freeable;
+} j2s_ptr;
+
+typedef struct {
+	int num_data;
+	j2s_ptr *data;
+} j2s_priv_data;
+
+void *j2s_alloc_data(j2s_ctx *ctx, size_t size) {
+	void *ptr = calloc(size, 1);
+	if (!ptr)
+		return NULL;
+
+	if (j2s_add_data(ctx, ptr, true) < 0) {
+		free(ptr);
+		return NULL;
+	}
+
+	return ptr;
+}
+
+int j2s_add_data(j2s_ctx *ctx, void *ptr, bool freeable) {
+	j2s_priv_data *priv;
+
+	if (!ctx->priv)
+		ctx->priv = calloc(1, sizeof(j2s_priv_data));
+
+	priv = ctx->priv;
+	for (int i = 0; i < priv->num_data; i++) {
+		j2s_ptr *data = &priv->data[i];
+		if (data->ptr)
+			continue;
+
+		data->ptr = ptr;
+		data->freeable = freeable;
+		return 0;
+	}
+
+	priv->num_data ++;
+	priv->data = realloc(priv->data, priv->num_data * sizeof(j2s_ptr));
+	if (!priv->data) {
+		ERR("failed to realloc\n");
+		priv->num_data = 0;
+		return -1;
+	}
+
+	priv->data[priv->num_data - 1].ptr = ptr;
+	priv->data[priv->num_data - 1].freeable = freeable;
+	return 0;
+}
+
+void j2s_release_data(j2s_ctx *ctx, void *ptr) {
+	j2s_priv_data *priv = ctx->priv;
+
+	for (int i = 0; priv && i < priv->num_data; i++) {
+		j2s_ptr *data = &priv->data[i];
+		if (ptr != data->ptr)
+			continue;
+
+		if (data->ptr && data->freeable)
+			free(data->ptr);
+
+		data->ptr = NULL;
+		return;
+	}
+
+	if (ptr)
+		free(ptr);
+}
+
 void* j2s_read_file(const char *file, size_t *size) {
 	struct stat st;
 	void *buf;
@@ -60,6 +132,7 @@ int j2s_load_cache(const char *file, j2s_ctx *ctx) {
 	ptr = buf;
 
 	*ctx = *(j2s_ctx *)ptr;
+	ctx->priv = NULL;
 	ptr += sizeof(*ctx);
 
 	DASSERT_MSG(ctx->magic == J2S_MAGIC &&
@@ -84,9 +157,10 @@ int j2s_load_cache(const char *file, j2s_ctx *ctx) {
 	DASSERT_MSG(ptr == buf + size, goto err,
 		    "invalid cache: '%s'\n", file);
 
-	ctx->priv = buf;
+	DASSERT(!j2s_add_data(ctx, buf, true), goto err);
 	return 0;
 err:
+	j2s_deinit(ctx);
 	free(buf);
 	return -1;
 }
@@ -125,17 +199,34 @@ void j2s_init(j2s_ctx *ctx) {
 
 	file = file ?: "/var/cache/j2s-cache";
 
-        if (!j2s_load_cache(file, ctx))
-                return;
-
-        _j2s_init(ctx);
-        j2s_save_cache(ctx, file);
+        if (j2s_load_cache(file, ctx) < 0) {
+		_j2s_init(ctx);
+		j2s_save_cache(ctx, file);
+	}
 #endif
+
+	ctx->manage_data = true;
 }
 
 void j2s_deinit(j2s_ctx *ctx) {
-	free(ctx->priv);
-	ctx->priv = NULL;
+	j2s_priv_data *priv = ctx->priv;
+
+	for (int i = 0; priv && i < priv->num_data; i++) {
+		j2s_ptr *data = &priv->data[i];
+		if (!data->ptr || !data->freeable)
+			continue;
+
+		/* Always free the cache file buf */
+		if (ctx->manage_data ||
+		    data->ptr + sizeof(*ctx) == ctx->objs)
+			free(data->ptr);
+	}
+
+	if (priv) {
+		if (priv->data)
+			free(priv->data);
+		free(priv);
+	}
 }
 
 int j2s_json_file_to_struct(j2s_ctx *ctx, const char *file, void *ptr) {

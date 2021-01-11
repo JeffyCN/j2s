@@ -85,9 +85,15 @@ typedef struct {
 	bool format_json; /* Generate formatted JSON */
 	bool dump_desc; /* Dump desc when dumping structs */
 	bool dump_enums; /* Dump enum info when dumping structs */
+	bool manage_data; /* Free allocated data in deinit stage */
 
 	void *priv; /* Private data */
 } __attribute__((packed)) j2s_ctx;
+
+/* Helpers for alloc/free ptr */
+void *j2s_alloc_data(j2s_ctx *ctx, size_t size);
+int j2s_add_data(j2s_ctx *ctx, void *ptr, bool freeable);
+void j2s_release_data(j2s_ctx *ctx, void *ptr);
 
 /* Init/deinit j2s_ctx */
 void j2s_init(j2s_ctx *ctx);

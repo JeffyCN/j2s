@@ -8,6 +8,7 @@ int main(int argc, char** argv) {
 
 	j2s_init(&ctx);
 	ctx.format_json = false;
+	//ctx.manage_data = false;
 
 	const char *json = R"(
 {

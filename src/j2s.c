@@ -763,9 +763,9 @@ int _j2s_json_to_obj(j2s_ctx *ctx, cJSON *json, cJSON *parent, int obj_index,
 			void **buf = (void **)(ptr + obj->offset);
 
 			if (old_len && *buf)
-				free(*buf);
+				j2s_release_data(ctx, *buf);
 
-			*buf = calloc(len, obj->elem_size);
+			*buf = j2s_alloc_data(ctx, len * obj->elem_size);
 
 			j2s_obj_set_value(ctx, obj->len_index, len, ptr);
 
