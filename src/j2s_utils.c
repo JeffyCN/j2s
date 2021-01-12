@@ -119,9 +119,18 @@ void* j2s_read_file(const char *file, size_t *size) {
 }
 
 int j2s_load_cache(const char *file, j2s_ctx *ctx) {
+	struct stat st;
 	void *buf, *ptr;
 	size_t size;
 	int ret = -1;
+
+	if (!file || stat(file, &st) < 0) {
+		DBG("No cache file: '%s'\n", file);
+		return -1;
+	}
+
+	DASSERT_MSG(getuid() == st.st_uid, goto err,
+		    "invalid cache: '%s'\n", file);
 
 	buf = j2s_read_file(file, &size);
 	DASSERT_MSG(buf && size > sizeof(*ctx), goto err,
@@ -171,7 +180,8 @@ int j2s_save_cache(j2s_ctx *ctx, const char *file) {
 	if (!file)
 		return -1;
 
-	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	unlink(file);
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	DASSERT_MSG(fd >= 0, return -1, "failed to open: '%s'\n", file);
 
 	DBG("Save cache: '%s'\n", file);
