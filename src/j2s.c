@@ -225,32 +225,31 @@ double j2s_obj_get_value(j2s_ctx *ctx, int obj_index, void *ptr) {
 	obj = &ctx->objs[obj_index];
 	ptr += obj->offset;
 
-#define J2S_FETCH_NUM(obj, type, ptr) \
-	if (obj->flags & J2S_FLAG_POINTER) ptr = *(type **)ptr; \
+#define J2S_FETCH_NUM(type, ptr) \
 	value = (double)*((type *)ptr); \
 	return value;
 
 	switch (obj->type) {
 	case J2S_TYPE_INT_8:
-		J2S_FETCH_NUM(obj, int8_t, ptr);
+		J2S_FETCH_NUM(int8_t, ptr);
 	case J2S_TYPE_UINT_8:
-		J2S_FETCH_NUM(obj, uint8_t, ptr);
+		J2S_FETCH_NUM(uint8_t, ptr);
 	case J2S_TYPE_INT_16:
-		J2S_FETCH_NUM(obj, int16_t, ptr);
+		J2S_FETCH_NUM(int16_t, ptr);
 	case J2S_TYPE_UINT_16:
-		J2S_FETCH_NUM(obj, uint16_t, ptr);
+		J2S_FETCH_NUM(uint16_t, ptr);
 	case J2S_TYPE_INT_32:
-		J2S_FETCH_NUM(obj, int32_t, ptr);
+		J2S_FETCH_NUM(int32_t, ptr);
 	case J2S_TYPE_UINT_32:
-		J2S_FETCH_NUM(obj, uint32_t, ptr);
+		J2S_FETCH_NUM(uint32_t, ptr);
 	case J2S_TYPE_INT_64:
-		J2S_FETCH_NUM(obj, int64_t, ptr);
+		J2S_FETCH_NUM(int64_t, ptr);
 	case J2S_TYPE_UINT_64:
-		J2S_FETCH_NUM(obj, uint64_t, ptr);
+		J2S_FETCH_NUM(uint64_t, ptr);
 	case J2S_TYPE_FLOAT:
-		J2S_FETCH_NUM(obj, float, ptr);
+		J2S_FETCH_NUM(float, ptr);
 	case J2S_TYPE_DOUBLE:
-		J2S_FETCH_NUM(obj, double, ptr);
+		J2S_FETCH_NUM(double, ptr);
 	default:
 		return 0;
 	}
@@ -267,31 +266,30 @@ int j2s_obj_set_value(j2s_ctx *ctx, int obj_index, double value, void *ptr) {
 	obj = &ctx->objs[obj_index];
 	ptr += obj->offset;
 
-#define J2S_STORE_NUM(obj, type, value, ptr) \
-	if (obj->flags & J2S_FLAG_POINTER) ptr = *(type **)ptr; \
+#define J2S_STORE_NUM(type, value, ptr) \
 	*(type *)ptr = (type)value; return 0;
 
 	switch (obj->type) {
 	case J2S_TYPE_INT_8:
-		J2S_STORE_NUM(obj, int8_t, value, ptr);
+		J2S_STORE_NUM(int8_t, value, ptr);
 	case J2S_TYPE_UINT_8:
-		J2S_STORE_NUM(obj, uint8_t, value, ptr);
+		J2S_STORE_NUM(uint8_t, value, ptr);
 	case J2S_TYPE_INT_16:
-		J2S_STORE_NUM(obj, int16_t, value, ptr);
+		J2S_STORE_NUM(int16_t, value, ptr);
 	case J2S_TYPE_UINT_16:
-		J2S_STORE_NUM(obj, uint16_t, value, ptr);
+		J2S_STORE_NUM(uint16_t, value, ptr);
 	case J2S_TYPE_INT_32:
-		J2S_STORE_NUM(obj, int32_t, value, ptr);
+		J2S_STORE_NUM(int32_t, value, ptr);
 	case J2S_TYPE_UINT_32:
-		J2S_STORE_NUM(obj, uint32_t, value, ptr);
+		J2S_STORE_NUM(uint32_t, value, ptr);
 	case J2S_TYPE_INT_64:
-		J2S_STORE_NUM(obj, int64_t, value, ptr);
+		J2S_STORE_NUM(int64_t, value, ptr);
 	case J2S_TYPE_UINT_64:
-		J2S_STORE_NUM(obj, uint64_t, value, ptr);
+		J2S_STORE_NUM(uint64_t, value, ptr);
 	case J2S_TYPE_FLOAT:
-		J2S_STORE_NUM(obj, float, value, ptr);
+		J2S_STORE_NUM(float, value, ptr);
 	case J2S_TYPE_DOUBLE:
-		J2S_STORE_NUM(obj, double, value, ptr);
+		J2S_STORE_NUM(double, value, ptr);
 	default:
 		return 0;
 	}
