@@ -101,6 +101,17 @@ int main(int argc, char** argv) {
 		goto err);
 	DASSERT(!compare(&test_struct, &init_struct), goto err);
 
+	/* Test struct cache */
+	DASSERT(!j2s_json_file_to_struct(&ctx, argv[1], &test_struct),
+		goto err);
+	DASSERT(!compare(&test_struct, &init_struct), goto err);
+
+	char cache[] = "/tmp/.j2s-cache";
+	j2s_save_cache(&ctx, cache, &test_struct);
+	memset(&test_struct, 0, sizeof(test_struct));
+	DASSERT(!j2s_load_cache(&ctx, cache, &test_struct), goto err);
+	DASSERT(!compare(&test_struct, &init_struct), goto err);
+
 	/* Test apply JSON to struct */
 	buf = R"({"a_pp":["a_pp_mod_0"],"a_aa":["a_aa_mod_0"],"a_pa":["a_pa_mod_0"],"a_ap":["a_ap_mod_0","a_ap_mod_1","a_ap_mod_2"],"a_ap_len":3})";
 	free(a_pp[0]);

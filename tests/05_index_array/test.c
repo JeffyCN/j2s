@@ -58,6 +58,17 @@ int main(int argc, char** argv) {
 		goto err);
 	DASSERT(!compare(&test_struct, &init_struct), goto err);
 
+	/* Test struct cache */
+	DASSERT(!j2s_json_file_to_struct(&ctx, argv[1], &test_struct),
+		goto err);
+	DASSERT(!compare(&test_struct, &init_struct), goto err);
+
+	char cache[] = "/tmp/.j2s-cache";
+	j2s_save_cache(&ctx, cache, &test_struct);
+	memset(&test_struct, 0, sizeof(test_struct));
+	DASSERT(!j2s_load_cache(&ctx, cache, &test_struct), goto err);
+	DASSERT(!compare(&test_struct, &init_struct), goto err);
+
 	/* Test apply JSON to struct */
 	buf = R"({"@a_ip_index":[2,3],"a_ip":[3,2],"@a_ia_index":[5,4,3,2,1],"a_ia":[1,2,3,4,5]})";
 	init_struct.a_ip[2] = 3;
