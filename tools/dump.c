@@ -143,7 +143,6 @@ void dump_struct(j2s_ctx *ctx, int struct_index, bool expend, int depth) {
 static
 void dump_enum(j2s_ctx *ctx, int enum_index) {
 	j2s_enum *enum_obj;
-	j2s_enum_value *enum_value;
 
 	if (enum_index < 0)
 		return;
@@ -163,7 +162,6 @@ void dump_enum(j2s_ctx *ctx, int enum_index) {
 int main(int argc, char** argv) {
 	j2s_struct *root_struct;
 	j2s_ctx ctx = {0};
-	cJSON *json;
 	char *buf;
 	bool template = false;
 	bool dump_desc = true;

@@ -16,6 +16,16 @@
 
 static bool j2s_template_dumping = false;
 
+__attribute__((weak))
+void *j2s_alloc_data(j2s_ctx *ctx, size_t size) {
+	return malloc(size);
+}
+
+__attribute__((weak))
+void j2s_release_data(j2s_ctx *ctx, void *ptr) {
+	free(ptr);
+}
+
 static
 cJSON *_j2s_obj_to_json(j2s_ctx *ctx, int obj_index, void *ptr);
 
@@ -29,6 +39,18 @@ int _j2s_json_to_obj(j2s_ctx *ctx, cJSON *json, cJSON *parent,
 static
 int _j2s_json_to_struct(j2s_ctx *ctx, cJSON *json, int struct_index,
 			void *ptr, bool query);
+
+static
+int _j2s_obj_from_cache(j2s_ctx *ctx, int obj_index, int fd, void *ptr);
+
+static
+int _j2s_struct_from_cache(j2s_ctx *ctx, int struct_index, int fd, void *ptr);
+
+static
+void _j2s_obj_to_cache(j2s_ctx *ctx, int obj_index, int fd, void *ptr);
+
+static
+void _j2s_struct_to_cache(j2s_ctx *ctx, int struct_index, int fd, void *ptr);
 
 static inline
 int j2s_find_struct_index(j2s_ctx *ctx, const char *name) {
@@ -64,6 +86,20 @@ int j2s_json_from_struct(j2s_ctx *ctx, cJSON *json,
 		name ? j2s_find_struct_index(ctx, name) : ctx->root_index;
 
 	return _j2s_json_to_struct(ctx, json, struct_index, ptr, true);
+}
+
+void j2s_struct_to_cache(j2s_ctx *ctx, const char *name, int fd, void *ptr) {
+	int struct_index =
+		name ? j2s_find_struct_index(ctx, name) : ctx->root_index;
+
+	_j2s_struct_to_cache(ctx, struct_index, fd, ptr);
+}
+
+int j2s_struct_from_cache(j2s_ctx *ctx, const char *name, int fd, void *ptr) {
+	int struct_index =
+		name ? j2s_find_struct_index(ctx, name) : ctx->root_index;
+
+	return _j2s_struct_from_cache(ctx, struct_index, fd, ptr);
 }
 
 /* Enum name to value */
@@ -184,6 +220,35 @@ cJSON *j2s_struct_to_template_json(j2s_ctx *ctx, const char *name) {
 	return _j2s_struct_to_template_json(ctx, struct_index);
 }
 
+int j2s_struct_size(j2s_ctx *ctx, int struct_index) {
+	j2s_struct *struct_obj;
+	j2s_obj *child;
+	int child_index, child_size;
+
+	if (struct_index < 0)
+		return 0;
+
+	struct_obj = &ctx->structs[struct_index];
+
+	/* Find last child */
+	for (child = NULL, child_index = struct_obj->child_index;
+	     child_index >= 0; child_index = child->next_index)
+		child = &ctx->objs[child_index];
+
+	if (!child)
+		return 0;
+
+	if (J2S_IS_POINTER(child)) {
+		child_size = (int)sizeof(void *);
+	} else if (J2S_IS_ARRAY(child)) {
+		child_size = child->elem_size * child->num_elem;
+	} else {
+		child_size = child->elem_size;
+	}
+
+	return child_size + child->offset;
+}
+
 const char *j2s_type_name(j2s_type type) {
 	switch (type) {
 	case J2S_TYPE_INT_8:
@@ -210,6 +275,8 @@ const char *j2s_type_name(j2s_type type) {
 		return "char";
 	case J2S_TYPE_STRUCT:
 		return "struct";
+	default:
+		return "unknown";
 	}
 }
 
@@ -342,9 +409,7 @@ void *j2s_extract_dynamic_array(j2s_obj *obj, int len, void *ptr) {
 static
 cJSON *j2s_get_index_json(j2s_ctx *ctx, cJSON *parent, int obj_index) {
 	j2s_obj *obj;
-	cJSON *index_json;
 	char index_name[MAX_NAME + 10];
-	cJSON *root;
 
 	if (obj_index < 0)
 		return NULL;
@@ -357,10 +422,10 @@ cJSON *j2s_get_index_json(j2s_ctx *ctx, cJSON *parent, int obj_index) {
 	return cJSON_GetObjectItemCaseSensitive(parent, index_name);
 }
 
+static
 cJSON *_j2s_obj_to_json(j2s_ctx *ctx, int obj_index, void *ptr) {
 	j2s_obj *obj;
 	cJSON *root;
-	const char *type;
 	double value;
 
 	if (obj_index < 0)
@@ -478,6 +543,7 @@ cJSON *_j2s_obj_to_json(j2s_ctx *ctx, int obj_index, void *ptr) {
 	return cJSON_CreateNumber(value);
 }
 
+static
 cJSON *_j2s_struct_to_json(j2s_ctx *ctx, int struct_index, void *ptr) {
 	j2s_struct *struct_obj;
 	j2s_obj *child;
@@ -619,15 +685,15 @@ int j2s_json_to_array_with_index(j2s_ctx *ctx, cJSON *json,
 	return ret;
 }
 
+static
 int _j2s_json_to_obj(j2s_ctx *ctx, cJSON *json, cJSON *parent, int obj_index,
 		     void *ptr, bool query) {
 	j2s_obj *obj;
 	cJSON *root = json;
-	const char *type;
 	int ret = 0;
 
 	if (obj_index < 0)
-		return 0;
+		return -1;
 
 	obj = &ctx->objs[obj_index];
 
@@ -698,7 +764,6 @@ int _j2s_json_to_obj(j2s_ctx *ctx, cJSON *json, cJSON *parent, int obj_index,
 		}
 
 		*obj = tmp_obj;
-
 		return ret;
 	}
 
@@ -830,6 +895,7 @@ int _j2s_json_to_obj(j2s_ctx *ctx, cJSON *json, cJSON *parent, int obj_index,
 	}
 }
 
+static
 int _j2s_json_to_struct(j2s_ctx *ctx, cJSON *json, int struct_index,
 			void *ptr, bool query) {
 	j2s_struct *struct_obj;
@@ -838,11 +904,9 @@ int _j2s_json_to_struct(j2s_ctx *ctx, cJSON *json, int struct_index,
 	int child_index, ret = 0;
 
 	if (struct_index < 0)
-		return 0;
+		return -1;
 
 	struct_obj = &ctx->structs[struct_index];
-	if (struct_obj->child_index < 0)
-		return 0;
 
 	DBG("start struct: %s from %p\n", struct_obj->name, ptr);
 
@@ -866,4 +930,264 @@ int _j2s_json_to_struct(j2s_ctx *ctx, cJSON *json, int struct_index,
 
 	DBG("finish struct: %s\n", struct_obj->name);
 	return ret;
+}
+
+static
+int j2s_restore_obj(j2s_ctx *ctx, j2s_obj *obj, int fd, void *ptr) {
+	char buf[MAX_NAME];
+	void **data_ptr;
+	int size;
+
+	if (!J2S_IS_POINTER(obj))
+		return 0;
+
+	data_ptr = (void **)(ptr + obj->offset);
+
+	if (read(fd, buf, MAX_NAME) != MAX_NAME)
+		return -1;
+
+	if (strncmp(obj->name, buf, MAX_NAME) < 0)
+		return -1;
+
+	if (read(fd, &size, sizeof(int)) != sizeof(int))
+		return -1;
+
+	if (!size) {
+		*data_ptr = NULL;
+		return 0;
+	}
+
+	*data_ptr = j2s_alloc_data(ctx, size);
+	if (!*data_ptr)
+		return -1;
+
+	if (read(fd, *data_ptr, size) != size) {
+		j2s_release_data(ctx, *data_ptr);
+		return -1;
+	}
+
+	DBG("restore obj: %s to %p, size %d\n", obj->name, *data_ptr, size);
+
+	return size;
+}
+
+static
+void j2s_store_obj(j2s_obj *obj, int fd, void *ptr) {
+	char buf[MAX_NAME] = {0};
+	int size;
+
+	if (!J2S_IS_POINTER(obj))
+		return;
+
+	ptr = *(void **)(ptr + obj->offset);
+	if (!ptr)
+		return;
+
+	if (J2S_IS_SIMPLE_STRING(obj)) {
+		size = strlen(ptr) + 1;
+	} else {
+		size = obj->num_elem * obj->elem_size;
+	}
+
+	DBG("store obj: %s from %p, size %d\n", obj->name, ptr, size);
+
+	strcpy(buf, obj->name);
+	write(fd, buf, MAX_NAME);
+	write(fd, &size, sizeof(int));
+	write(fd, ptr, size);
+}
+
+static
+int _j2s_obj_from_cache(j2s_ctx *ctx, int obj_index, int fd, void *ptr) {
+	j2s_obj *obj;
+	int ret = 0;
+
+	if (obj_index < 0)
+		return -1;
+
+	obj = &ctx->objs[obj_index];
+
+	DBG("handling obj: %s from %p[%d]\n", obj->name, ptr, obj->offset);
+
+	/* Handle simple string */
+	if (J2S_IS_SIMPLE_STRING(obj))
+		return j2s_restore_obj(ctx, obj, fd, ptr);
+
+	/* Handle array member */
+	if (J2S_IS_ARRAY(obj)) {
+		j2s_obj tmp_obj = *obj;
+
+		if (obj->type != J2S_TYPE_STRUCT &&
+		    obj->type != J2S_TYPE_STRING)
+			return 0;
+
+		/* Walk into array */
+		j2s_extract_array(obj);
+
+		for (int i = 0; i < tmp_obj.num_elem; i++) {
+			DBG("handling array: %s %d/%d\n",
+			    obj->name, i, tmp_obj.num_elem);
+
+			ret = _j2s_obj_from_cache(ctx, obj_index, fd, ptr);
+			if (ret < 0)
+				break;
+
+			obj->offset += tmp_obj.elem_size;
+		}
+
+		*obj = tmp_obj;
+		return ret;
+	}
+
+	/* Handle dynamic array */
+	if (J2S_IS_POINTER(obj)) {
+		j2s_obj tmp_obj = *obj;
+		int size;
+
+		size = j2s_restore_obj(ctx, obj, fd, ptr);
+		if (size <= 0)
+			return size;
+
+		/* Walk into dynamic array */
+		ptr = j2s_extract_dynamic_array(obj,
+						size / obj->elem_size, ptr);
+
+		DBG("handling dynamic array: %s %d*%d from %p\n",
+		    obj->name, obj->elem_size, obj->num_elem, ptr);
+
+		ret = _j2s_obj_from_cache(ctx, obj_index, fd, ptr);
+
+		*obj = tmp_obj;
+		return ret;
+	}
+
+	/* Handle struct member */
+	if (obj->type == J2S_TYPE_STRUCT)
+		return _j2s_struct_from_cache(ctx, obj->struct_index, fd,
+					    ptr + obj->offset);
+
+	return 0;
+}
+
+static
+int _j2s_struct_from_cache(j2s_ctx *ctx, int struct_index, int fd, void *ptr) {
+	j2s_struct *struct_obj;
+	j2s_obj *child;
+	int child_index;
+
+	if (struct_index < 0)
+		return -1;
+
+	if (struct_index == ctx->root_index) {
+		int root_size = j2s_struct_size(ctx, ctx->root_index);
+		if (read(fd, ptr, root_size) != root_size)
+			return -1;
+	}
+
+	struct_obj = &ctx->structs[struct_index];
+
+	/* Walk child list */
+	for (child_index = struct_obj->child_index; child_index >= 0;
+	     child_index = child->next_index) {
+		child = &ctx->objs[child_index];
+		if (_j2s_obj_from_cache(ctx, child_index, fd, ptr) < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static
+void _j2s_obj_to_cache(j2s_ctx *ctx, int obj_index, int fd, void *ptr) {
+	j2s_obj *obj;
+
+	if (obj_index < 0)
+		return;
+
+	obj = &ctx->objs[obj_index];
+
+	DBG("handling obj: %s from %p[%d]\n", obj->name, ptr, obj->offset);
+
+	/* Handle simple string */
+	if (J2S_IS_SIMPLE_STRING(obj)) {
+		j2s_store_obj(obj, fd, ptr);
+		return;
+	}
+
+	/* Handle array member */
+	if (J2S_IS_ARRAY(obj)) {
+		j2s_obj tmp_obj = *obj;
+
+		if (obj->type != J2S_TYPE_STRUCT &&
+		    obj->type != J2S_TYPE_STRING)
+			return;
+
+		/* Walk into array */
+		j2s_extract_array(obj);
+
+		for (int i = 0; i < tmp_obj.num_elem; i++) {
+			DBG("handling array: %s %d/%d\n",
+			    obj->name, i, tmp_obj.num_elem);
+
+			_j2s_obj_to_cache(ctx, obj_index, fd, ptr);
+			obj->offset += tmp_obj.elem_size;
+		}
+
+		*obj = tmp_obj;
+		return;
+	}
+
+	/* Handle dynamic array */
+	if (J2S_IS_POINTER(obj)) {
+		j2s_obj tmp_obj = *obj;
+		int len;
+
+		if (obj->len_index < 0)
+			return;
+
+		len = j2s_obj_get_value(ctx, obj->len_index, ptr);
+		if (!len)
+			return;
+
+		obj->num_elem = len;
+		j2s_store_obj(obj, fd, ptr);
+
+		/* Walk into dynamic array */
+		ptr = j2s_extract_dynamic_array(obj, len, ptr);
+
+		DBG("handling dynamic array: %s %d*%d from %p\n",
+		    obj->name, obj->elem_size, obj->num_elem, ptr);
+
+		_j2s_obj_to_cache(ctx, obj_index, fd, ptr);
+
+		*obj = tmp_obj;
+		return;
+	}
+
+	/* Handle struct member */
+	if (obj->type == J2S_TYPE_STRUCT)
+		_j2s_struct_to_cache(ctx, obj->struct_index, fd,
+				       ptr + obj->offset);
+}
+
+static
+void _j2s_struct_to_cache(j2s_ctx *ctx, int struct_index, int fd, void *ptr) {
+	j2s_struct *struct_obj;
+	j2s_obj *child;
+	int child_index;
+
+	if (struct_index < 0)
+		return;
+
+	if (struct_index == ctx->root_index)
+		write(fd, ptr, j2s_struct_size(ctx, struct_index));
+
+	struct_obj = &ctx->structs[struct_index];
+
+	/* Walk child list */
+	for (child_index = struct_obj->child_index; child_index >= 0;
+	     child_index = child->next_index) {
+		child = &ctx->objs[child_index];
+		_j2s_obj_to_cache(ctx, child_index, fd, ptr);
+	}
 }

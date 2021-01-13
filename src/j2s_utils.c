@@ -95,12 +95,12 @@ void* j2s_read_file(const char *file, size_t *size) {
 	int fd;
 
 	DASSERT_MSG(file && !stat(file, &st), return NULL,
-		    "no such file: '%s'\n", file ? file : "<null>");
+		    "no such file: '%s'\n", file ?: "<null>");
 
 	fd = open(file, O_RDONLY);
 	DASSERT_MSG(fd >= 0, return NULL, "failed to open: '%s'\n", file);
 
-	buf = malloc(st.st_size);
+	buf = malloc(st.st_size + 1);
 	DASSERT(buf, return NULL);
 
 	DBG("Read file: '%s'\n", file);
@@ -112,31 +112,71 @@ void* j2s_read_file(const char *file, size_t *size) {
 		return NULL;
 	}
 
+	((char *)buf)[st.st_size] = '\0';
 	*size = st.st_size;
 
 	close(fd);
 	return buf;
 }
 
-int j2s_load_cache(const char *file, j2s_ctx *ctx) {
-	struct stat st;
-	void *buf, *ptr;
-	size_t size;
-	int ret = -1;
+static
+char *j2s_cache_file(const char *file) {
+	char cache_file[256];
 
-	if (!file || stat(file, &st) < 0) {
-		DBG("No cache file: '%s'\n", file);
+	if (getenv("J2S_NO_CACHE")) {
+		DBG("Cache not allowed\n");
+		return NULL;
+	}
+
+	strcpy(cache_file, getenv("J2S_CACHE") ?: "/var/cache/j2s-cache");
+
+	/* NULL for ctx cache file */
+	if (!file)
+		return strdup(cache_file);
+
+	strcat(cache_file, "-");
+	strcat(cache_file, strrchr(file, '/') ? strrchr(file, '/') + 1 : file);
+
+	for (int i = 0; cache_file[i]; i++) {
+		if (cache_file[i] == '.')
+			cache_file[i] = '-';
+	}
+
+	return strdup(cache_file);
+}
+
+static
+int j2s_cache_file_valid(const char *cache_file) {
+	struct stat st;
+
+	if (!cache_file || stat(cache_file, &st) < 0) {
+		DBG("invalid cache: '%s'\n", cache_file ?: "<NULL>");
 		return -1;
 	}
 
-	DASSERT_MSG(getuid() == st.st_uid, goto err,
-		    "invalid cache: '%s'\n", file);
+	if (getuid() != st.st_uid) {
+		DBG("invalid cache: '%s'\n", cache_file);
+		return -1;
+	}
 
-	buf = j2s_read_file(file, &size);
-	DASSERT_MSG(buf && size > sizeof(*ctx), goto err,
-		    "invalid cache: '%s'\n", file);
+	return 0;
+}
 
-	DBG("Load cache: '%s'\n", file);
+static __attribute__((unused))
+int j2s_load_ctx_cache(j2s_ctx *ctx, const char *cache_file) {
+	void *buf, *ptr;
+	size_t size;
+
+	if (j2s_cache_file_valid(cache_file) < 0)
+		return -1;
+
+	buf = j2s_read_file(cache_file, &size);
+	if (!buf || size <= sizeof(*ctx)) {
+		DBG("invalid cache: '%s'\n", cache_file);
+		goto err;
+	}
+
+	DBG("Loading ctx cache: '%s'\n", cache_file);
 
 	ptr = buf;
 
@@ -144,12 +184,13 @@ int j2s_load_cache(const char *file, j2s_ctx *ctx) {
 	ctx->priv = NULL;
 	ptr += sizeof(*ctx);
 
-	DASSERT_MSG(ctx->magic == J2S_MAGIC &&
-		    ctx->num_obj == J2S_NUM_OBJ &&
-		    ctx->num_struct == J2S_NUM_STRUCT &&
-		    ctx->num_enum == J2S_NUM_ENUM &&
-		    ctx->num_enum_value == J2S_NUM_ENUM_VALUE, goto err,
-		    "invalid cache: '%s'\n", file);
+	if (ctx->magic != J2S_MAGIC || ctx->num_obj != J2S_NUM_OBJ ||
+	    ctx->num_struct != J2S_NUM_STRUCT ||
+	    ctx->num_enum != J2S_NUM_ENUM ||
+	    ctx->num_enum_value != J2S_NUM_ENUM_VALUE) {
+		DBG("invalid cache: '%s'\n", cache_file);
+		goto err;
+	}
 
 	ctx->objs = ptr;
 	ptr += ctx->num_obj * sizeof(*ctx->objs);
@@ -163,10 +204,14 @@ int j2s_load_cache(const char *file, j2s_ctx *ctx) {
 	ctx->enum_values = ptr;
 	ptr += ctx->num_enum_value * sizeof(*ctx->enum_values);
 
-	DASSERT_MSG(ptr == buf + size, goto err,
-		    "invalid cache: '%s'\n", file);
+	if (ptr != buf + size) {
+		DBG("invalid cache: '%s'\n", cache_file);
+		goto err;
+	}
 
-	DASSERT(!j2s_add_data(ctx, buf, true), goto err);
+	if (j2s_add_data(ctx, buf, true) < 0)
+		goto err;
+
 	return 0;
 err:
 	j2s_deinit(ctx);
@@ -174,17 +219,20 @@ err:
 	return -1;
 }
 
-int j2s_save_cache(j2s_ctx *ctx, const char *file) {
+static __attribute__((unused))
+void j2s_save_ctx_cache(j2s_ctx *ctx, const char *cache_file) {
 	int fd;
 
-	if (!file)
-		return -1;
+	if (!cache_file)
+		return;
 
-	unlink(file);
-	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-	DASSERT_MSG(fd >= 0, return -1, "failed to open: '%s'\n", file);
+	fd = creat(cache_file, S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+		DBG("failed to create: '%s'\n", cache_file);
+		return;
+	}
 
-	DBG("Save cache: '%s'\n", file);
+	DBG("Saving ctx cache: '%s'\n", cache_file);
 
 	ctx->num_desc = 0;
 
@@ -196,7 +244,6 @@ int j2s_save_cache(j2s_ctx *ctx, const char *file) {
 	      ctx->num_enum_value * sizeof(*ctx->enum_values));
 
 	close(fd);
-	return 0;
 }
 
 void j2s_init(j2s_ctx *ctx) {
@@ -205,14 +252,15 @@ void j2s_init(j2s_ctx *ctx) {
 #ifdef J2S_ENABLE_DESC
         _j2s_init(ctx);
 #else
-	const char *file = getenv("J2S_CACHE");
+	char *cache_file = j2s_cache_file(NULL);
 
-	file = file ?: "/var/cache/j2s-cache";
-
-        if (j2s_load_cache(file, ctx) < 0) {
+        if (j2s_load_ctx_cache(ctx, cache_file) < 0) {
 		_j2s_init(ctx);
-		j2s_save_cache(ctx, file);
+		j2s_save_ctx_cache(ctx, cache_file);
 	}
+
+	if (cache_file)
+		free(cache_file);
 #endif
 
 	ctx->manage_data = true;
@@ -239,19 +287,111 @@ void j2s_deinit(j2s_ctx *ctx) {
 	}
 }
 
+int j2s_load_struct_cache(j2s_ctx *ctx, const char *cache_file, void *ptr,
+			  void *auth_data, int auth_size) {
+	int fd, ret = -1;
+
+	if (j2s_cache_file_valid(cache_file) < 0)
+		return -1;
+
+	fd = open(cache_file, O_RDONLY);
+	if (fd < 0) {
+		DBG("failed to open: '%s'\n", cache_file);
+		return -1;
+	}
+
+	DBG("Loading struct cache: '%s'\n", cache_file);
+
+	/* The cache file should start with auth data */
+	if (auth_data && auth_size) {
+		void *buf = malloc(auth_size);
+		if (!buf)
+			goto out;
+
+		if (read(fd, buf, auth_size) != auth_size) {
+			free(buf);
+			goto out;
+		}
+
+		if (memcmp(buf, auth_data, auth_size)) {
+			free(buf);
+			goto out;
+		}
+
+		free(buf);
+	}
+
+	if (j2s_root_struct_from_cache(ctx, fd, ptr) < 0)
+		goto out;
+
+	/* Check end of file */
+	if (read(fd, &ret, 1) > 0)
+		goto out;
+
+	DBG("Loaded struct cache: '%s'\n", cache_file);
+
+	ret = 0;
+out:
+	close(fd);
+	return ret;
+}
+
+void j2s_save_struct_cache(j2s_ctx *ctx, const char *cache_file, void *ptr,
+			   void *auth_data, int auth_size) {
+	int fd;
+
+	fd = creat(cache_file, S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+		DBG("failed to create: '%s'\n", cache_file);
+		return;
+	}
+
+	DBG("Saving struct cache: '%s'\n", cache_file);
+
+	if (auth_data && auth_size)
+		write(fd, auth_data, auth_size);
+
+	j2s_root_struct_to_cache(ctx, fd, ptr);
+
+	close(fd);
+}
+
 int j2s_json_file_to_struct(j2s_ctx *ctx, const char *file, void *ptr) {
-	char *buf;
+	char *cache_file;
+	struct stat st;
 	size_t size;
-	int ret;
+	char *buf;
+	int ret = -1;
+
+	DASSERT_MSG(file && !stat(file, &st), return -1,
+		    "no such file: '%s'\n", file ?: "<null>");
+
+	cache_file = j2s_cache_file(file);
+
+	/* Using the file stat as auth data */
+	if (!j2s_load_struct_cache(ctx, cache_file, ptr, &st, sizeof(st))) {
+		free(cache_file);
+		return 0;
+	}
+
+	memset(ptr, 0, j2s_struct_size(ctx, ctx->root_index));
 
 	buf = j2s_read_file(file, &size);
-	DASSERT(buf, return -1);
+	if (!buf)
+		goto out;
 
 	DBG("Parse file: '%s', content:\n%s\n", file, buf);
 
-	ret = j2s_modify_struct(ctx, buf, ptr);
+	if (j2s_modify_struct(ctx, buf, ptr) < 0)
+		goto out;
 
-	free(buf);
+	j2s_save_struct_cache(ctx, cache_file, ptr, &st, sizeof(st));
+
+	ret = 0;
+out:
+	free(cache_file);
+	if (buf)
+		free(buf);
 	return ret;
 }
 

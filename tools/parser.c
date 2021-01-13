@@ -279,7 +279,6 @@ void j2s_handle_comment(j2s_ctx *ctx, char *buf) {
 
 static inline
 int j2s_parse(j2s_ctx *ctx, char *buf) {
-	j2s_enum_value *enum_value = NULL;
 	j2s_struct *struct_obj = NULL;
 	j2s_enum *enum_obj = NULL;
 	j2s_obj *obj = NULL;
@@ -851,7 +850,9 @@ void j2s_dump(j2s_ctx *ctx) {
 		      obj->flags & J2S_FLAG_ARRAY_POINTER))) {
 			j2s_obj *len_obj;
 			char len_name[MAX_NAME];
-			snprintf(len_name, MAX_NAME, "%s_len", obj->name);
+			DASSERT_MSG(snprintf(len_name, MAX_NAME,
+					     "%s_len", obj->name) >= 0,
+				    exit(-1), "%s_len too long\n", obj->name);
 
 			j2s_list_find(&obj->parent->child, entry,
 				      len_obj, len_name);
@@ -877,7 +878,7 @@ void j2s_dump(j2s_ctx *ctx) {
 		if (obj->desc) {
 			char *ptr;
 
-			while (ptr = strchr(obj->desc, '"'))
+			while ((ptr = strchr(obj->desc, '"')))
 				*ptr = '\'';
 
 			/* Check default value for enum in desc */

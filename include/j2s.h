@@ -99,6 +99,9 @@ void j2s_release_data(j2s_ctx *ctx, void *ptr);
 void j2s_init(j2s_ctx *ctx);
 void j2s_deinit(j2s_ctx *ctx);
 
+/* Get size of struct */
+int j2s_struct_size(j2s_ctx *ctx, int struct_index);
+
 /* Get name of j2s type */
 const char *j2s_type_name(j2s_type type);
 
@@ -112,6 +115,8 @@ cJSON *j2s_enums_to_json(j2s_ctx *ctx);
 cJSON *j2s_struct_to_json(j2s_ctx *ctx, const char *name, void *ptr);
 int j2s_json_to_struct(j2s_ctx *ctx, cJSON *json, const char *name, void *ptr);
 int j2s_json_from_struct(j2s_ctx *ctx, cJSON *json, const char *name, void *ptr);
+void j2s_struct_to_cache(j2s_ctx *ctx, const char *name, int fd, void *ptr);
+int j2s_struct_from_cache(j2s_ctx *ctx, const char *name, int fd, void *ptr);
 
 /* Dump root struct to cJSON */
 #define j2s_root_struct_to_json(ctx, ptr) \
@@ -125,6 +130,14 @@ int j2s_json_from_struct(j2s_ctx *ctx, cJSON *json, const char *name, void *ptr)
 #define j2s_json_from_root_struct(ctx, json, ptr) \
 	j2s_json_from_struct(ctx, json, NULL, ptr)
 
+/* Store root struct to cache fd */
+#define j2s_root_struct_to_cache(ctx, fd, ptr) \
+	j2s_struct_to_cache(ctx, NULL, fd, ptr)
+
+/* Restore root struct from cache fd */
+#define j2s_root_struct_from_cache(ctx, fd, ptr) \
+	j2s_struct_from_cache(ctx, NULL, fd, ptr)
+
 /* Read file content to buf */
 void* j2s_read_file(const char *file, size_t *size);
 
@@ -132,6 +145,16 @@ void* j2s_read_file(const char *file, size_t *size);
 int j2s_json_file_to_struct(j2s_ctx *ctx, const char *file, void *ptr);
 
 char *j2s_dump_struct(j2s_ctx *ctx, const char *name, void *ptr);
+
+/* Load/save root struct to cache file */
+int j2s_load_struct_cache(j2s_ctx *ctx, const char *cache_file, void *ptr,
+			  void *auth_data, int auth_size);
+void j2s_save_struct_cache(j2s_ctx *ctx, const char *cache_file, void *ptr,
+			   void *auth_data, int auth_size);
+#define j2s_load_cache(ctx, cache_file, ptr) \
+	j2s_load_struct_cache(ctx, cache_file, ptr, NULL, 0)
+#define j2s_save_cache(ctx, cache_file, ptr) \
+	j2s_save_struct_cache(ctx, cache_file, ptr, NULL, 0)
 
 /* Dump root struct to JSON */
 #define j2s_dump_root_struct(ctx, ptr) \
