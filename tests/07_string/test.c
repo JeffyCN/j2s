@@ -8,7 +8,7 @@ static int compare_string(char *a, char *b) {
 	if (!a)
 		return 0;
 
-	return strcmp(a, b);
+	return strcmp(a, b) ? -1 : 0;
 }
 
 int compare(void *ptr_a, void *ptr_b) {
@@ -26,13 +26,13 @@ int compare(void *ptr_a, void *ptr_b) {
 			return -1;
 	}
 
-	if (strcmp(a->a_a, b->a_a) < 0)
+	if (strcmp(a->a_a, b->a_a))
 		return -1;
 
-	if (strcmp(a->a_aa[0], b->a_aa[0]) < 0)
+	if (strcmp(a->a_aa[0], b->a_aa[0]))
 		return -1;
 
-	if (strcmp(a->a_aa[1], b->a_aa[1]) < 0)
+	if (strcmp(a->a_aa[1], b->a_aa[1]))
 		return -1;
 
 	if (compare_string(a->a_pa[0], b->a_pa[0]) < 0)
@@ -45,7 +45,7 @@ int compare(void *ptr_a, void *ptr_b) {
 		return -1;
 
 	for (int i = 0; i < a->a_ap_len; i++) {
-		if (strcmp(a->a_ap[i], b->a_ap[i]) < 0)
+		if (strcmp(a->a_ap[i], b->a_ap[i]))
 			return -1;
 	}
 

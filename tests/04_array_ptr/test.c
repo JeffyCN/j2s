@@ -9,7 +9,7 @@ int compare(void *ptr_a, void *ptr_b) {
 		return -1;
 
 	for (int i = 0; i < a->b_ip_len; i++) {
-		if (memcmp(a->b_ip[i], b->b_ip[i], sizeof(*a->b_ip[i])) < 0)
+		if (memcmp(a->b_ip[i], b->b_ip[i], sizeof(*a->b_ip[i])))
 			return -1;
 	}
 
@@ -17,7 +17,7 @@ int compare(void *ptr_a, void *ptr_b) {
 		return -1;
 
 	for (int i = 0; i < a->b_ap_len; i++) {
-		if (memcmp(a->b_ap[i], b->b_ap[i], sizeof(*a->b_ap[i])) < 0)
+		if (memcmp(a->b_ap[i], b->b_ap[i], sizeof(*a->b_ap[i])))
 			return -1;
 	}
 

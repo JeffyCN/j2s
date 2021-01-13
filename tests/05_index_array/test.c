@@ -8,10 +8,10 @@ int compare(void *ptr_a, void *ptr_b) {
 	if (a->a_ip_len != b->a_ip_len)
 		return -1;
 
-	if (memcmp(a->a_ip, b->a_ip, a->a_ip_len) < 0)
+	if (memcmp(a->a_ip, b->a_ip, a->a_ip_len))
 		return -1;
 
-	if (memcmp(a->a_ia, b->a_ia, sizeof(a->a_ia)) < 0)
+	if (memcmp(a->a_ia, b->a_ia, sizeof(a->a_ia)))
 		return -1;
 
 	return 0;

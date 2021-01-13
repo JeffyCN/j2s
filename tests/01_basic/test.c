@@ -7,7 +7,7 @@ int compare(void *ptr_a, void *ptr_b) {
 	struct_c *a = ptr_a;
 	struct_c *b = ptr_b;
 
-	if (memcmp(ptr_a, ptr_b, (uintptr_t)&((struct_c *)0)->c_d) < 0)
+	if (memcmp(ptr_a, ptr_b, (uintptr_t)&((struct_c *)0)->c_d))
 		return -1;
 
 	if (fabs(a->c_d - b->c_d) >= 0.000001)
