@@ -43,10 +43,13 @@ extern "C"
 #endif
 
 #ifndef DBG
-#ifdef DEBUG
+#if defined(NDEBUG)
+#define DBG(fmt, args...)
+#elif defined(DEBUG)
 #define DBG(fmt, args...) MSG(D, fmt, ##args)
 #else
-#define DBG(fmt, args...)
+#define DBG(fmt, args...) \
+	if (getenv("J2S_DEBUG")) MSG(D, fmt, ##args)
 #endif
 #endif
 
