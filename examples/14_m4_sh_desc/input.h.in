@@ -1,7 +1,8 @@
-// #define M4_STRUCT_DESC(ALIAS, SIZE, UI_MODULE)
-// #define M4_NUMBER_DESC(ALIAS, TYPE, SIZE, RANGE, DEFAULT)
+// #define M4_NUMBER_DESC(ALIAS, TYPE, SIZE, RANGE, DEFAULT, PRECISION)
 // #define M4_STRING_DESC(ALIAS, SIZE, RANGE, DEFAULT)
+// #define M4_BOOL_DESC(ALIAS, DEFAULT)
 // #define M4_ENUM_DESC(ALIAS, ENUM, DEFAULT)
+// #define M4_STRUCT_DESC(ALIAS, SIZE, UI_MODULE)
 
 typedef enum {
 	BOY,
@@ -11,8 +12,14 @@ typedef enum {
 typedef struct {
 	// M4_STRING_DESC("Student Name", M4_SIZE(1), M4_RANGE(0, 64), "name");
 	const char *student_name;
-	// M4_ENUM_DESC("Student Sex", "SEX", "BOY");
+	// M4_ENUM_DESC("Student Sex", SEX, BOY);
 	SEX sex;
+	// M4_NUMBER_DESC("Student Age", "u32", M4_SIZE(1), M4_RANGE(16, 30), 20);
+	int age;
+	// M4_BOOL_DESC("Student Sick", false);
+	bool sick;
+	// M4_NUMBER_DESC("Student temperature", "f32", M4_SIZE(1), M4_RANGE(20.0, 50), 35.2, 1);
+	double temperature;
 } student_t;
 
 typedef struct {

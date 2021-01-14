@@ -25,7 +25,7 @@ for d in $DIRS;do
 
 	if [ -f $DIR/input.h.in ]; then
 		cd $DIR
-		cat *.m4 input.h.in |m4 -E - > .input.h
+		cat *.m4 input.h.in | PATH=$PWD:$PATH m4 -E - > .input.h
 		cd -
 		./parser.sh $DIR/.input.h
 	else
