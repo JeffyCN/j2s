@@ -1,8 +1,8 @@
 #!/bin/sh -e
 
 INPUT=${1:-input.h}
-
-EXTRA_CFLAGS="$EXTRA_CFLAGS -I${INPUT%/*}"
+INC_DIR=$(dirname $INPUT)
+EXTRA_CFLAGS="$EXTRA_CFLAGS ${INC_DIR:+-I$INC_DIR}"
 
 # Precompile input header and keeping the comments
 gcc $EXTRA_CFLAGS $INPUT -E -C -o .output.h

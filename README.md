@@ -8,9 +8,11 @@ I. How it Work
 
 II. Limits
 
-III. Examples
+III. How to use it
 
-IV. Tests
+IV. Examples
+
+V. Tests
 
 ### I. How it Work
 
@@ -41,7 +43,7 @@ For arrays, only support array, 2D array, array pointer. And the array pointer d
 typedef <type> (*array_ptr_<type>)[len]
 ```
 
-For pointer member 'type *data'(including array pointer), requires an extra int member "int data_len" to describe the allocated data length.
+For pointer member "data"(including array pointer), requires an extra int member "data_len" to describe the allocated data length.
 
 The float(or double)'s decimal places of precision limited to 6:
 ```c
@@ -54,26 +56,34 @@ The float(or double)'s decimal places of precision limited to 6:
 #endif
 ```
 
-### III. Examples
+### III. How to use it
+
+There's also a demo to show how to use this:
+```shell
+# Run demo
+$ ./demo.sh
+```
+
+### IV. Examples
 
 There're a few examples under examples/:
 ```shell
 # Run all examples
-./example.sh
+$ ./example.sh
 
 # Run single example
-./example.sh examples/01_struct_to_json/
+$ ./example.sh examples/01_struct_to_json/
 ```
 
-### IV. Tests
+### V. Tests
 
 There're also a few tests under tests/:
 ```shell
 # Run all tests
-./test.sh
+$ ./test.sh
 
 # Run single test
-./test.sh tests/01_basic/
+$ ./test.sh tests/01_basic/
 ```
 
 ## Maintainers
