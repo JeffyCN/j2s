@@ -159,8 +159,8 @@ j2s_type j2s_parse_type(const char *type, j2s_flag flags) {
 	if (!strcmp(type, "char") &&
 	    (flags & (J2S_FLAG_ARRAY | J2S_FLAG_POINTER)))
 		return J2S_TYPE_STRING;
-	if (!strcmp(type, "char") || !strcmp(type, "bool") ||
-	    !strcmp(type, "int8_t"))
+	if (!strcmp(type, "char") || !strcmp(type, "int8_t") ||
+	    !strcmp(type, "bool") || !strcmp(type, "_Bool"))
 		return J2S_TYPE_INT_8;
 	if (!strcmp(type, "unsigned char") || !strcmp(type, "uint8_t"))
 		return J2S_TYPE_UINT_8;
